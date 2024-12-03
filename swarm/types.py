@@ -18,6 +18,7 @@ class Agent(BaseModel):
     functions: List[AgentFunction] = []
     tool_choice: str = None
     parallel_tool_calls: bool = True
+    temperature: float = 0
 
 
 class Response(BaseModel):
