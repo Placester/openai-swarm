@@ -254,6 +254,7 @@ class Swarm:
         context_variables = copy.deepcopy(context_variables)
         history = copy.deepcopy(messages)
         init_len = len(messages)
+        token_history: list[dict] = []
 
         while len(history) - init_len < max_turns and active_agent:
 
@@ -266,6 +267,15 @@ class Swarm:
                 stream=stream,
                 debug=debug,
             )
+
+            token_details = {
+                "total_tokens": completion.usage.total_tokens,
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "completion_tokens": completion.usage.completion_tokens,
+                "cached_tokens": completion.usage.prompt_tokens_details.cached_tokens
+            }
+            token_history.append(token_details)
+
             message = completion.choices[0].message
             debug_print(debug, "Received completion:", message)
             message.sender = active_agent.name
@@ -285,6 +295,13 @@ class Swarm:
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:
                 active_agent = partial_response.agent
+
+        k = 0
+
+        for i in range(0, len(history)):
+            if history[i]['role'] == 'assistant':
+                history[i].update(token_history[k])
+                k += 1
 
         return Response(
             messages=history[init_len:],
