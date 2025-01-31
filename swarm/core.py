@@ -300,6 +300,21 @@ class Swarm:
             if partial_response.agent:
                 active_agent = partial_response.agent
 
+        k = 0
+        # Start from init_len to only process new messages
+        # (Previous messages are from a different context and shouldn't get token info)
+        for i in range(init_len, len(history)):
+            if history[i]['role'] == 'assistant':
+                if k < len(token_history):
+                    history[i].update(token_history[k])
+                    k += 1
+                else:
+                    debug_print(
+                        debug,
+                        "Ran out of token_history entries. The assistant messages have outnumbered them!"
+                    )
+                    break
+
         return Response(
             messages=history[init_len:],
             agent=active_agent,
