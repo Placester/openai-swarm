@@ -256,8 +256,9 @@ class Swarm:
         init_len = len(messages)
         token_history: list[dict] = []
 
+        print("Starting the loop", flush=True)
         while len(history) - init_len < max_turns and active_agent:
-
+            print("Getting completion", flush=True)
             # get completion with current history, agent
             completion = self.get_chat_completion(
                 agent=active_agent,
@@ -276,6 +277,7 @@ class Swarm:
                 "completion_tokens": completion.usage.completion_tokens,
                 "cached_tokens": completion.usage.prompt_tokens_details.cached_tokens
             }
+
             token_history.append(token_details)
 
             message = completion.choices[0].message
@@ -297,19 +299,6 @@ class Swarm:
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:
                 active_agent = partial_response.agent
-
-        k = 0
-        for i in range(len(history)):
-            if history[i]['role'] == 'assistant':
-                if k < len(token_history):
-                    history[i].update(token_history[k])
-                    k += 1
-                else:
-                    debug_print(
-                        debug,
-                        "Ran out of token_history entries. The assistant messages have outnumbered them!"
-                    )
-                    break
 
         return Response(
             messages=history[init_len:],
