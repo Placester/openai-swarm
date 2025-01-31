@@ -268,6 +268,8 @@ class Swarm:
                 debug=debug,
             )
 
+            print(completion, flush=True)
+
             token_details = {
                 "total_tokens": completion.usage.total_tokens,
                 "prompt_tokens": completion.usage.prompt_tokens,
@@ -297,11 +299,17 @@ class Swarm:
                 active_agent = partial_response.agent
 
         k = 0
-
-        for i in range(0, len(history)):
+        for i in range(len(history)):
             if history[i]['role'] == 'assistant':
-                history[i].update(token_history[k])
-                k += 1
+                if k < len(token_history):
+                    history[i].update(token_history[k])
+                    k += 1
+                else:
+                    debug_print(
+                        debug,
+                        "Ran out of token_history entries. The assistant messages have outnumbered them!"
+                    )
+                    break
 
         return Response(
             messages=history[init_len:],
