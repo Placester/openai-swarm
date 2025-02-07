@@ -19,6 +19,7 @@ class Agent(BaseModel):
     tool_choice: str = None
     parallel_tool_calls: bool = True
     temperature: float = 0
+    reasoning_effort: str | None = "medium"
 
 
 class Response(BaseModel):

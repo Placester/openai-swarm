@@ -55,8 +55,9 @@ class Swarm:
             if __CTX_VARS_NAME__ in params["required"]:
                 params["required"].remove(__CTX_VARS_NAME__)
 
+        model_config = model_override or agent.model
         create_params = {
-            "model": model_override or agent.model,
+            "model": model_config,
             "messages": messages,
             "tools": tools or None,
             "tool_choice": agent.tool_choice,
@@ -64,8 +65,13 @@ class Swarm:
             "temperature": agent.temperature
         }
 
-        if tools:
+        # Only add parallel_tool_calls when not using "o3-mini"
+        if tools and not model_config.startswith("o3-mini"):
             create_params["parallel_tool_calls"] = agent.parallel_tool_calls
+
+        if model_config.startswith("o3-mini"):
+            create_params["temperature"] = 1
+            create_params["reasoning_effort"] = agent.reasoning_effort or "medium"
 
         return self.client.chat.completions.create(**create_params)
 
