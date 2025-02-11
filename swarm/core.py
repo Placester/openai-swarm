@@ -62,7 +62,8 @@ class Swarm:
             "tools": tools or None,
             "tool_choice": agent.tool_choice,
             "stream": stream,
-            "temperature": agent.temperature
+            "temperature": agent.temperature,
+            "top_p": agent.top_p
         }
 
         # Only add parallel_tool_calls when not using "o3-mini"
