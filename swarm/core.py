@@ -23,7 +23,7 @@ from .types import (
 
 __CTX_VARS_NAME__ = "context_variables"
 
-print("Swarm core loaded")
+print("Swarm core loaded", flush=True)
 
 class Swarm:
     def __init__(self, client=None, ending_tool_names=[]):
