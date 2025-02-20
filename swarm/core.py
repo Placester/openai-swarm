@@ -2,6 +2,7 @@
 import copy
 import json
 from collections import defaultdict
+import logging
 from typing import List, Callable, Union
 
 # Package/library imports
@@ -24,10 +25,11 @@ __CTX_VARS_NAME__ = "context_variables"
 
 
 class Swarm:
-    def __init__(self, client=None):
+    def __init__(self, client=None, ending_tool_names=[]):
         if not client:
             client = OpenAI()
         self.client = client
+        self.ending_tool_names = ending_tool_names
 
     def get_chat_completion(
         self,
@@ -227,6 +229,11 @@ class Swarm:
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:
                 active_agent = partial_response.agent
+                
+            if message and message.get("tool_calls"):
+                if any(tool_call["function"]["name"] in self.ending_tool_names for tool_call in message["tool_calls"] if tool_call and tool_call.get("function") and tool_call["function"].get("name")):
+                    debug_print(debug, f"Ending turn on tool call {tool_call['function']['name']}")
+                    break
 
         yield {
             "response": Response(
@@ -276,7 +283,7 @@ class Swarm:
                 debug=debug,
             )
 
-            print(completion, flush=True)
+            debug_print(debug, completion)
 
             token_details = {
                 "total_tokens": completion.usage.total_tokens,
@@ -306,6 +313,24 @@ class Swarm:
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:
                 active_agent = partial_response.agent
+
+            #Partial response: messages=[{'role': 'tool', 'tool_call_id': 'call_A9Y25lKSwBAmPRHAX8tSZ712', 'tool_name': 'get_weather', 'content': '{"location": "Katowice", "temperature": "65", "time": "now"}'}] agent=None context_variables={}
+            # Now lets do the break if tool name is in the ending_tool_names
+            if partial_response and partial_response.messages:
+                debug_print(debug, "Partial response:", partial_response)
+                ending_tool_called = False  # Flag to indicate if an ending tool was called
+                for tool_call_message in partial_response.messages:
+                    debug_print(debug, "Tool call message:", tool_call_message)
+                    if isinstance(tool_call_message, dict) and "tool_name" in tool_call_message:
+                        debug_print(debug, "Tool name:", tool_call_message["tool_name"])
+                        if tool_call_message["tool_name"] in self.ending_tool_names:
+                            debug_print(debug, "Ending turn on tool call")
+                            ending_tool_called = True
+                            break;
+                if ending_tool_called:
+                    break
+
+            debug_print(debug, "Partial response:", partial_response)
 
         k = 0
         # Start from init_len to only process new messages
