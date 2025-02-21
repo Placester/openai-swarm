@@ -10,7 +10,7 @@ def convert_azure_response_to_swarm_shape(response):
         id=response.id,
         created=int(response.created.timestamp()),
         model=response.model,
-        object=response.object.value,
+        object="chat.completion",
         choices=[
             Choice(
                 finish_reason=response.choices[0].finish_reason.value,
