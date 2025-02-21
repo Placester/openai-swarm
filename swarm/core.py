@@ -232,9 +232,10 @@ class Swarm:
             if partial_response.agent:
                 active_agent = partial_response.agent
 
-            if message and message.get("tool_calls"):
-                if any(tool_call["function"]["name"] in self.ending_tool_names for tool_call in message["tool_calls"] if tool_call and tool_call.get("function") and tool_call["function"].get("name")):
-                    debug_print(debug, f"Ending turn on tool call {tool_call['function']['name']}")
+            for tc in message.get("tool_calls", []):
+                name = tc.get("function", {}).get("name")
+                if name in self.ending_tool_names:
+                    debug_print(debug, f"Ending turn on tool call {name}")
                     break
 
         yield {
