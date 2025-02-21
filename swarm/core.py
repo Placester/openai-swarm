@@ -1,5 +1,6 @@
 # Standard library imports
 import copy
+import datetime
 import json
 from collections import defaultdict
 import logging
@@ -232,10 +233,11 @@ class Swarm:
             context_variables.update(partial_response.context_variables)
             if partial_response.agent:
                 active_agent = partial_response.agent
-                
-            if message and message.get("tool_calls"):
-                if any(tool_call["function"]["name"] in self.ending_tool_names for tool_call in message["tool_calls"] if tool_call and tool_call.get("function") and tool_call["function"].get("name")):
-                    debug_print(debug, f"Ending turn on tool call {tool_call['function']['name']}")
+
+            for tc in message.get("tool_calls", []):
+                name = tc.get("function", {}).get("name")
+                if name in self.ending_tool_names:
+                    debug_print(debug, f"Ending turn on tool call {name}")
                     break
 
         yield {
@@ -277,6 +279,9 @@ class Swarm:
         while len(history) - init_len < max_turns and active_agent:
             print("Getting completion", flush=True)
             # get completion with current history, agent
+
+            start_time = datetime.datetime.now()
+
             completion = self.get_chat_completion(
                 agent=active_agent,
                 history=history,
@@ -286,13 +291,17 @@ class Swarm:
                 debug=debug,
             )
 
+            end_time = datetime.datetime.now()
+
             debug_print(debug, completion)
 
             token_details = {
                 "total_tokens": completion.usage.total_tokens,
                 "prompt_tokens": completion.usage.prompt_tokens,
                 "completion_tokens": completion.usage.completion_tokens,
-                "cached_tokens": completion.usage.prompt_tokens_details.cached_tokens
+                "cached_tokens": completion.usage.prompt_tokens_details.cached_tokens,
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S")
             }
 
             token_history.append(token_details)
