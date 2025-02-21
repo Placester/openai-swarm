@@ -30,6 +30,8 @@ class Swarm:
         if not client:
             client = OpenAI()
         self.client = client
+        if not ending_tool_names:
+            ending_tool_names = []
         self.ending_tool_names = ending_tool_names
 
     def get_chat_completion(
