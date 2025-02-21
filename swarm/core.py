@@ -3,12 +3,17 @@ import copy
 import datetime
 import json
 from collections import defaultdict
-import logging
+import os
 from typing import List, Callable, Union
 
 # Package/library imports
 from openai import OpenAI
 
+# Azure
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
+
+from swarm.convert_azure_response_to_swarm_shape import convert_azure_response_to_swarm_shape
 
 # Local imports
 from .util import function_to_json, debug_print, merge_chunk
@@ -19,7 +24,7 @@ from .types import (
     ChatCompletionMessageToolCall,
     Function,
     Response,
-    Result,
+    Result
 )
 
 __CTX_VARS_NAME__ = "context_variables"
@@ -34,6 +39,11 @@ class Swarm:
         if not ending_tool_names:
             ending_tool_names = []
         self.ending_tool_names = ending_tool_names
+        self.azureClient = ChatCompletionsClient(
+            endpoint=os.getenv("AZURE_AI_COMPLETION_ENDPOINT", "https://placester-openai.openai.azure.com/openai/deployments/gpt-4o"),
+            credential=AzureKeyCredential(os.getenv("AZURE_AI_COMPLETION_KEY", "5m1BzeN6qMj8ndXr0NDfDxR2DmxtRWd3qw8c48ghBCv3CjQIShjFJQQJ99BBACYeBjFXJ3w3AAABACOGkzT6")),
+            api_version="2024-06-01"
+        )
 
     def get_chat_completion(
         self,
@@ -80,7 +90,14 @@ class Swarm:
             create_params["temperature"] = 1
             create_params["reasoning_effort"] = agent.reasoning_effort or "medium"
 
-        return self.client.chat.completions.create(**create_params)
+
+        match create_params["model"]:
+            case "gpt-4o":
+                azure_params = create_params
+                azure_params.pop("parallel_tool_calls")
+                return convert_azure_response_to_swarm_shape(self.azureClient.complete(**azure_params))
+            case _:
+                return self.client.chat.completions.create(**create_params)
 
     def handle_function_result(self, result, debug) -> Result:
         match result:
@@ -326,7 +343,6 @@ class Swarm:
             if partial_response.agent:
                 active_agent = partial_response.agent
 
-            #Partial response: messages=[{'role': 'tool', 'tool_call_id': 'call_A9Y25lKSwBAmPRHAX8tSZ712', 'tool_name': 'get_weather', 'content': '{"location": "Katowice", "temperature": "65", "time": "now"}'}] agent=None context_variables={}
             # Now lets do the break if tool name is in the ending_tool_names
             if partial_response and partial_response.messages:
                 debug_print(debug, "Partial response:", partial_response)
