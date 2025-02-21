@@ -37,13 +37,9 @@ class Swarm:
             client = OpenAI()
         self.client = client
 
-        if not ending_tool_names:
-            ending_tool_names = []
         self.ending_tool_names = ending_tool_names
-
-        if not use_azure:
-            self.use_azure = False
-
+        
+        self.use_azure = use_azure
         self.azureClient = ChatCompletionsClient(
             endpoint=os.getenv("AZURE_AI_COMPLETION_ENDPOINT", "https://placester-openai.openai.azure.com/openai/deployments/gpt-4o"),
             credential=AzureKeyCredential(os.getenv("AZURE_AI_COMPLETION_KEY", "5m1BzeN6qMj8ndXr0NDfDxR2DmxtRWd3qw8c48ghBCv3CjQIShjFJQQJ99BBACYeBjFXJ3w3AAABACOGkzT6")),
