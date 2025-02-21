@@ -126,6 +126,7 @@ from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion import Choice
 
 def convert_azure_response_to_swarm_shape(response):
+    print("Response:", response, flush=True)
     return ChatCompletion(
         id=response.id,
         created=int(response.created.timestamp()),

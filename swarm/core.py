@@ -32,13 +32,18 @@ __CTX_VARS_NAME__ = "context_variables"
 print("Swarm core loaded", flush=True)
 
 class Swarm:
-    def __init__(self, client=None, ending_tool_names=[]):
+    def __init__(self, client=None, ending_tool_names=[], use_azure=False):
         if not client:
             client = OpenAI()
         self.client = client
+
         if not ending_tool_names:
             ending_tool_names = []
         self.ending_tool_names = ending_tool_names
+
+        if not use_azure:
+            self.use_azure = False
+
         self.azureClient = ChatCompletionsClient(
             endpoint=os.getenv("AZURE_AI_COMPLETION_ENDPOINT", "https://placester-openai.openai.azure.com/openai/deployments/gpt-4o"),
             credential=AzureKeyCredential(os.getenv("AZURE_AI_COMPLETION_KEY", "5m1BzeN6qMj8ndXr0NDfDxR2DmxtRWd3qw8c48ghBCv3CjQIShjFJQQJ99BBACYeBjFXJ3w3AAABACOGkzT6")),
@@ -90,14 +95,16 @@ class Swarm:
             create_params["temperature"] = 1
             create_params["reasoning_effort"] = agent.reasoning_effort or "medium"
 
-
-        match create_params["model"]:
-            case "gpt-4o":
-                azure_params = create_params
-                azure_params.pop("parallel_tool_calls")
-                return convert_azure_response_to_swarm_shape(self.azureClient.complete(**azure_params))
-            case _:
-                return self.client.chat.completions.create(**create_params)
+        if self.use_azure:
+            match create_params["model"]:
+                case "gpt-4o":
+                    azure_params = create_params
+                    azure_params.pop("parallel_tool_calls")
+                    return convert_azure_response_to_swarm_shape(self.azureClient.complete(**azure_params))
+                case _:
+                    return self.client.chat.completions.create(**create_params)
+        else:
+            return self.client.chat.completions.create(**create_params)
 
     def handle_function_result(self, result, debug) -> Result:
         match result:
