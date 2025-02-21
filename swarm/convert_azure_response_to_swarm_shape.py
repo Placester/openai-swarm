@@ -17,7 +17,7 @@ def convert_azure_response_to_swarm_shape(response):
                 index=response.choices[0].index,
                 message=ChatCompletionMessage(
                     content=response.choices[0].message.content,
-                    role=str(response.choices[0].message.role),
+                    role=response.choices[0].message.role.value,
                     tool_calls=response.choices[0].message.tool_calls,
                 ),
             )
