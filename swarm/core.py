@@ -40,8 +40,8 @@ class Swarm:
             ending_tool_names = []
         self.ending_tool_names = ending_tool_names
         self.azureClient = ChatCompletionsClient(
-            endpoint=os.getenv("AZURE_AI_COMPLETION_ENDPOINT", ""),
-            credential=AzureKeyCredential(os.getenv("AZURE_AI_COMPLETION_KEY", "")),
+            endpoint=os.getenv("AZURE_AI_COMPLETION_ENDPOINT", "https://placester-openai.openai.azure.com/openai/deployments/gpt-4o"),
+            credential=AzureKeyCredential(os.getenv("AZURE_AI_COMPLETION_KEY", "5m1BzeN6qMj8ndXr0NDfDxR2DmxtRWd3qw8c48ghBCv3CjQIShjFJQQJ99BBACYeBjFXJ3w3AAABACOGkzT6")),
             api_version="2024-06-01"
         )
 
@@ -295,6 +295,7 @@ class Swarm:
         print("Starting the loop", flush=True)
         while len(history) - init_len < max_turns and active_agent:
             print("Getting completion", flush=True)
+            print("History:", history, flush=True)
             # get completion with current history, agent
 
             start_time = datetime.datetime.now()
