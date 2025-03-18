@@ -16,7 +16,7 @@ from azure.core.credentials import AzureKeyCredential
 from swarm.convert_azure_response_to_swarm_shape import convert_azure_response_to_swarm_shape
 
 # Local imports
-from .util import function_to_json, debug_print, merge_chunk
+from .util import function_to_json, merge_chunk
 from .types import (
     Agent,
     AgentFunction,
@@ -28,8 +28,6 @@ from .types import (
 )
 
 __CTX_VARS_NAME__ = "context_variables"
-
-print("Swarm core loaded", flush=True)
 
 class Swarm:
     def __init__(self, client=None, ending_tool_names=[], use_azure=False):
@@ -62,7 +60,6 @@ class Swarm:
             else agent.instructions
         )
         messages = [{"role": "system", "content": instructions}] + history
-        debug_print(debug, "Getting chat completion for...:", messages)
 
         tools = [function_to_json(f) for f in agent.functions]
         # hide context_variables from model
@@ -117,7 +114,6 @@ class Swarm:
                     return Result(value=str(result))
                 except Exception as e:
                     error_message = f"Failed to cast response to string: {result}. Make sure agent functions return a string or Result object. Error: {str(e)}"
-                    debug_print(debug, error_message)
                     raise TypeError(error_message)
 
     def handle_tool_calls(
@@ -135,7 +131,6 @@ class Swarm:
             name = tool_call.function.name
             # handle missing tool case, skip to next tool
             if name not in function_map:
-                debug_print(debug, f"Tool {name} not found in function map.")
                 partial_response.messages.append(
                     {
                         "role": "tool",
@@ -148,7 +143,6 @@ class Swarm:
             
             try:
                 args = json.loads(tool_call.function.arguments)
-                debug_print(debug, f"Processing tool call: {name} with arguments {args}")
 
                 func = function_map[name]
                 # pass context_variables to agent functions
@@ -174,7 +168,6 @@ class Swarm:
             except TypeError as e:
                 # Catch argument mismatches and parameter errors
                 error_message = f"Error calling function '{name}': {str(e)}. Please check the arguments and try again."
-                debug_print(debug, f"Function argument error: {error_message}")
                 partial_response.messages.append(
                     {
                         "role": "tool",
@@ -187,7 +180,6 @@ class Swarm:
             except Exception as e:
                 # Catch any other exceptions during function execution
                 error_message = f"Error executing function '{name}': {str(e)}"
-                debug_print(debug, f"Function execution error: {error_message}")
                 partial_response.messages.append(
                     {
                         "role": "tool",
@@ -255,11 +247,9 @@ class Swarm:
                 message.get("tool_calls", {}).values())
             if not message["tool_calls"]:
                 message["tool_calls"] = None
-            debug_print(debug, "Received completion:", message)
             history.append(message)
 
             if not message["tool_calls"] or not execute_tools:
-                debug_print(debug, "Ending turn.")
                 break
 
             # convert tool_calls to objects
@@ -286,7 +276,6 @@ class Swarm:
             for tc in message.get("tool_calls", []):
                 name = tc.get("function", {}).get("name")
                 if name in self.ending_tool_names:
-                    debug_print(debug, f"Ending turn on tool call {name}")
                     break
 
         yield {
@@ -324,10 +313,7 @@ class Swarm:
         init_len = len(messages)
         token_history: list[dict] = []
 
-        print("Starting the loop", flush=True)
         while len(history) - init_len < max_turns and active_agent:
-            print("Getting completion", flush=True)
-            print("History:", history, flush=True)
             # get completion with current history, agent
 
             start_time = datetime.datetime.now()
@@ -343,8 +329,6 @@ class Swarm:
 
             end_time = datetime.datetime.now()
 
-            debug_print(debug, completion)
-
             token_details = {
                 "total_tokens": completion.usage.total_tokens,
                 "prompt_tokens": completion.usage.prompt_tokens,
@@ -357,14 +341,12 @@ class Swarm:
             token_history.append(token_details)
 
             message = completion.choices[0].message
-            debug_print(debug, "Received completion:", message)
             message.sender = active_agent.name
             history.append(
                 json.loads(message.model_dump_json())
             )  # to avoid OpenAI types (?)
 
             if not message.tool_calls or not execute_tools:
-                debug_print(debug, "Ending turn.")
                 break
 
             # handle function calls, updating context_variables, and switching agents
@@ -378,20 +360,14 @@ class Swarm:
 
             # Now lets do the break if tool name is in the ending_tool_names
             if partial_response and partial_response.messages:
-                debug_print(debug, "Partial response:", partial_response)
                 ending_tool_called = False  # Flag to indicate if an ending tool was called
                 for tool_call_message in partial_response.messages:
-                    debug_print(debug, "Tool call message:", tool_call_message)
                     if isinstance(tool_call_message, dict) and "tool_name" in tool_call_message:
-                        debug_print(debug, "Tool name:", tool_call_message["tool_name"])
                         if tool_call_message["tool_name"] in self.ending_tool_names:
-                            debug_print(debug, "Ending turn on tool call")
                             ending_tool_called = True
                             break;
                 if ending_tool_called:
                     break
-
-            debug_print(debug, "Partial response:", partial_response)
 
         k = 0
         # Start from init_len to only process new messages
@@ -401,12 +377,6 @@ class Swarm:
                 if k < len(token_history):
                     history[i].update(token_history[k])
                     k += 1
-                else:
-                    debug_print(
-                        debug,
-                        "Ran out of token_history entries. The assistant messages have outnumbered them!"
-                    )
-                    break
 
         return Response(
             messages=history[init_len:],
