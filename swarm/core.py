@@ -145,28 +145,57 @@ class Swarm:
                     }
                 )
                 continue
-            args = json.loads(tool_call.function.arguments)
-            debug_print(
-                debug, f"Processing tool call: {name} with arguments {args}")
+            
+            try:
+                args = json.loads(tool_call.function.arguments)
+                debug_print(debug, f"Processing tool call: {name} with arguments {args}")
 
-            func = function_map[name]
-            # pass context_variables to agent functions
-            if __CTX_VARS_NAME__ in func.__code__.co_varnames:
-                args[__CTX_VARS_NAME__] = context_variables
-            raw_result = function_map[name](**args)
-
-            result: Result = self.handle_function_result(raw_result, debug)
-            partial_response.messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "tool_name": name,
-                    "content": result.value,
-                }
-            )
-            partial_response.context_variables.update(result.context_variables)
-            if result.agent:
-                partial_response.agent = result.agent
+                func = function_map[name]
+                # pass context_variables to agent functions
+                if __CTX_VARS_NAME__ in func.__code__.co_varnames:
+                    args[__CTX_VARS_NAME__] = context_variables
+                
+                # This is where the function is called - wrap in try/except
+                raw_result = function_map[name](**args)
+                
+                result: Result = self.handle_function_result(raw_result, debug)
+                partial_response.messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "tool_name": name,
+                        "content": result.value,
+                    }
+                )
+                partial_response.context_variables.update(result.context_variables)
+                if result.agent:
+                    partial_response.agent = result.agent
+            
+            except TypeError as e:
+                # Catch argument mismatches and parameter errors
+                error_message = f"Error calling function '{name}': {str(e)}. Please check the arguments and try again."
+                debug_print(debug, f"Function argument error: {error_message}")
+                partial_response.messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "tool_name": name,
+                        "content": error_message,
+                    }
+                )
+            
+            except Exception as e:
+                # Catch any other exceptions during function execution
+                error_message = f"Error executing function '{name}': {str(e)}"
+                debug_print(debug, f"Function execution error: {error_message}")
+                partial_response.messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "tool_name": name,
+                        "content": error_message,
+                    }
+                )
 
         return partial_response
 
